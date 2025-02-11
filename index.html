@@ -1,0 +1,51 @@
+<canvas id="canvas" width="256" height="256" style="border: 2px solid blue"></canvas>
+<script>
+
+let canvas = document.getElementById("canvas");
+let ctx = canvas.getContext("2d");
+
+ctx.beginPath();
+ctx.arc(128, 128, 4, 0, 2 * Math.PI);
+ctx.fillStyle = "blue";
+ctx.fill();
+
+let down = false;
+
+canvas.onmousedown = function() {
+	down = true;
+};
+
+canvas.onmouseup = function() {
+	down = false;
+};
+
+canvas.onmouseleave = function() {
+	down = false;
+};
+
+let x = 0;
+let y = 0;
+
+let prevX = 0;
+let prevY = 0;
+
+canvas.onmousemove = function(e) {
+	if(down) {
+		x = e.clientX;
+		y = e.clientY;
+
+		if(prevX > 0)
+		{
+			ctx.beginPath();
+			ctx.moveTo(prevX, prevY);
+			ctx.lineTo(x, y);
+			ctx.stroke();
+		}
+
+		prevX = x;
+		prevY = y;
+	}
+};
+
+
+</script>
