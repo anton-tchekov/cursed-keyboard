@@ -21,10 +21,10 @@ pub struct Leds {
 	caps_lock: gpio::gpioc::PC13<gpio::Output<gpio::PushPull>>,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 enum Layout {
 	US,
-	German
+	DE
 }
 
 impl keyberon::keyboard::Leds for Leds {
@@ -348,11 +348,11 @@ mod app {
 	fn type_char(ctx: &mut idle::Context, layout: Layout, c: char) {
 		let r = match layout {
 			Layout::US => us_char(c),
-			Layout::German => german_char(c)
+			Layout::DE => german_char(c)
 		};
 
 		if let Some(report) = r {
-			let times = if c == '^' || c == '`' { 2 } else { 1 };
+			let times = if layout == Layout::DE && (c == '^' || c == '`') { 2 } else { 1 };
 			for _i in 0..times {
 				send_report(ctx, &report);
 				shitty_delay_ms(20);
@@ -371,10 +371,20 @@ mod app {
 	#[idle(shared = [usb_class], local = [myled])]
 	fn idle(mut c: idle::Context) -> ! {
 		shitty_delay_ms(3000);
+
+		type_str(&mut c, Layout::US, "US Layout Test:\n");
+		type_str(&mut c, Layout::US, " !\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~\n");
+		shitty_delay_ms(1000);
+
+		type_str(&mut c, Layout::US, "You now have 5 seconds to switch the keyboard layout to german\n");
+		shitty_delay_ms(5000);
+
+		type_str(&mut c, Layout::DE, "DE Layout Test:\n");
+		type_str(&mut c, Layout::DE, " !\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~\n");
+		shitty_delay_ms(1000);
+
 		loop {
-			type_str(&mut c, Layout::US, " !\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~\n");
-			shitty_delay_ms(1000);
-			type_str(&mut c, Layout::US, "Hello World!\n");
+			type_str(&mut c, Layout::DE, "Hello World!\n");
 			shitty_delay_ms(1000);
 		}
 	}
