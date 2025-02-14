@@ -21,6 +21,12 @@ pub struct Leds {
 	caps_lock: gpio::gpioc::PC13<gpio::Output<gpio::PushPull>>,
 }
 
+#[derive(Copy, Clone)]
+enum Layout {
+	US,
+	German
+}
+
 impl keyberon::keyboard::Leds for Leds {
 	fn caps_lock(&mut self, status: bool) {
 		if status {
@@ -43,6 +49,116 @@ fn report_gen(kc: KeyCode, m: Option<KeyCode>) -> KbHidReport {
 	}
 
 	report
+}
+
+fn us_char(c: char) -> Option<KbHidReport> {
+	match c {
+		' ' => Some(report_gen(KeyCode::Space, None)),
+		'!' => Some(report_gen(KeyCode::Kb1, Some(KeyCode::LShift))),
+		'"' => Some(report_gen(KeyCode::Quote, Some(KeyCode::LShift))),
+		'#' => Some(report_gen(KeyCode::Kb3, Some(KeyCode::LShift))),
+		'$' => Some(report_gen(KeyCode::Kb4, Some(KeyCode::LShift))),
+		'%' => Some(report_gen(KeyCode::Kb5, Some(KeyCode::LShift))),
+		'&' => Some(report_gen(KeyCode::Kb7, Some(KeyCode::LShift))),
+		'\'' => Some(report_gen(KeyCode::Quote, None)),
+		'(' => Some(report_gen(KeyCode::Kb9, Some(KeyCode::LShift))),
+		')' => Some(report_gen(KeyCode::Kb0, Some(KeyCode::LShift))),
+		'*' => Some(report_gen(KeyCode::Kb8, Some(KeyCode::LShift))),
+		'+' => Some(report_gen(KeyCode::Equal, Some(KeyCode::LShift))),
+		',' => Some(report_gen(KeyCode::Comma, None)),
+		'-' => Some(report_gen(KeyCode::Minus, None)),
+		'.' => Some(report_gen(KeyCode::Dot, None)),
+		'/' => Some(report_gen(KeyCode::Slash, None)),
+
+		'0' => Some(report_gen(KeyCode::Kb0, None)),
+		'1' => Some(report_gen(KeyCode::Kb1, None)),
+		'2' => Some(report_gen(KeyCode::Kb2, None)),
+		'3' => Some(report_gen(KeyCode::Kb3, None)),
+		'4' => Some(report_gen(KeyCode::Kb4, None)),
+		'5' => Some(report_gen(KeyCode::Kb5, None)),
+		'6' => Some(report_gen(KeyCode::Kb6, None)),
+		'7' => Some(report_gen(KeyCode::Kb7, None)),
+		'8' => Some(report_gen(KeyCode::Kb8, None)),
+		'9' => Some(report_gen(KeyCode::Kb9, None)),
+
+		':' => Some(report_gen(KeyCode::SColon, Some(KeyCode::LShift))),
+		';' => Some(report_gen(KeyCode::SColon, None)),
+		'<' => Some(report_gen(KeyCode::Comma, Some(KeyCode::LShift))),
+		'=' => Some(report_gen(KeyCode::Equal, None)),
+		'>' => Some(report_gen(KeyCode::Dot, Some(KeyCode::LShift))),
+		'?' => Some(report_gen(KeyCode::Slash, Some(KeyCode::LShift))),
+		'@' => Some(report_gen(KeyCode::Kb2, Some(KeyCode::LShift))),
+
+		'A' => Some(report_gen(KeyCode::A, Some(KeyCode::LShift))),
+		'B' => Some(report_gen(KeyCode::B, Some(KeyCode::LShift))),
+		'C' => Some(report_gen(KeyCode::C, Some(KeyCode::LShift))),
+		'D' => Some(report_gen(KeyCode::D, Some(KeyCode::LShift))),
+		'E' => Some(report_gen(KeyCode::E, Some(KeyCode::LShift))),
+		'F' => Some(report_gen(KeyCode::F, Some(KeyCode::LShift))),
+		'G' => Some(report_gen(KeyCode::G, Some(KeyCode::LShift))),
+		'H' => Some(report_gen(KeyCode::H, Some(KeyCode::LShift))),
+		'I' => Some(report_gen(KeyCode::I, Some(KeyCode::LShift))),
+		'J' => Some(report_gen(KeyCode::J, Some(KeyCode::LShift))),
+		'K' => Some(report_gen(KeyCode::K, Some(KeyCode::LShift))),
+		'L' => Some(report_gen(KeyCode::L, Some(KeyCode::LShift))),
+		'M' => Some(report_gen(KeyCode::M, Some(KeyCode::LShift))),
+		'N' => Some(report_gen(KeyCode::N, Some(KeyCode::LShift))),
+		'O' => Some(report_gen(KeyCode::O, Some(KeyCode::LShift))),
+		'P' => Some(report_gen(KeyCode::P, Some(KeyCode::LShift))),
+		'Q' => Some(report_gen(KeyCode::Q, Some(KeyCode::LShift))),
+		'R' => Some(report_gen(KeyCode::R, Some(KeyCode::LShift))),
+		'S' => Some(report_gen(KeyCode::S, Some(KeyCode::LShift))),
+		'T' => Some(report_gen(KeyCode::T, Some(KeyCode::LShift))),
+		'U' => Some(report_gen(KeyCode::U, Some(KeyCode::LShift))),
+		'V' => Some(report_gen(KeyCode::V, Some(KeyCode::LShift))),
+		'W' => Some(report_gen(KeyCode::W, Some(KeyCode::LShift))),
+		'X' => Some(report_gen(KeyCode::X, Some(KeyCode::LShift))),
+		'Y' => Some(report_gen(KeyCode::Y, Some(KeyCode::LShift))),
+		'Z' => Some(report_gen(KeyCode::Z, Some(KeyCode::LShift))),
+
+		'[' => Some(report_gen(KeyCode::LBracket, None)),
+		'\\' => Some(report_gen(KeyCode::Bslash, None)),
+		']' => Some(report_gen(KeyCode::RBracket, None)),
+		'^' => Some(report_gen(KeyCode::Kb6, Some(KeyCode::LShift))),
+		'_' => Some(report_gen(KeyCode::Minus, Some(KeyCode::LShift))),
+		'`' => Some(report_gen(KeyCode::Grave, None)),
+
+		'a' => Some(report_gen(KeyCode::A, None)),
+		'b' => Some(report_gen(KeyCode::B, None)),
+		'c' => Some(report_gen(KeyCode::C, None)),
+		'd' => Some(report_gen(KeyCode::D, None)),
+		'e' => Some(report_gen(KeyCode::E, None)),
+		'f' => Some(report_gen(KeyCode::F, None)),
+		'g' => Some(report_gen(KeyCode::G, None)),
+		'h' => Some(report_gen(KeyCode::H, None)),
+		'i' => Some(report_gen(KeyCode::I, None)),
+		'j' => Some(report_gen(KeyCode::J, None)),
+		'k' => Some(report_gen(KeyCode::K, None)),
+		'l' => Some(report_gen(KeyCode::L, None)),
+		'm' => Some(report_gen(KeyCode::M, None)),
+		'n' => Some(report_gen(KeyCode::N, None)),
+		'o' => Some(report_gen(KeyCode::O, None)),
+		'p' => Some(report_gen(KeyCode::P, None)),
+		'q' => Some(report_gen(KeyCode::Q, None)),
+		'r' => Some(report_gen(KeyCode::R, None)),
+		's' => Some(report_gen(KeyCode::S, None)),
+		't' => Some(report_gen(KeyCode::T, None)),
+		'u' => Some(report_gen(KeyCode::U, None)),
+		'v' => Some(report_gen(KeyCode::V, None)),
+		'w' => Some(report_gen(KeyCode::W, None)),
+		'x' => Some(report_gen(KeyCode::X, None)),
+		'y' => Some(report_gen(KeyCode::Y, None)),
+		'z' => Some(report_gen(KeyCode::Z, None)),
+
+		'{' => Some(report_gen(KeyCode::LBracket, Some(KeyCode::LShift))),
+		'|' => Some(report_gen(KeyCode::Bslash, Some(KeyCode::LShift))),
+		'}' => Some(report_gen(KeyCode::RBracket, Some(KeyCode::LShift))),
+		'~' => Some(report_gen(KeyCode::Grave, Some(KeyCode::LShift))),
+
+		'\n' => Some(report_gen(KeyCode::Enter, None)),
+
+		_ => None
+	}
 }
 
 fn german_char(c: char) -> Option<KbHidReport> {
@@ -113,9 +229,9 @@ fn german_char(c: char) -> Option<KbHidReport> {
 		'[' => Some(report_gen(KeyCode::Kb8, Some(KeyCode::RAlt))),
 		'\\' => Some(report_gen(KeyCode::Minus, Some(KeyCode::RAlt))),
 		']' => Some(report_gen(KeyCode::Kb9, Some(KeyCode::RAlt))),
-		'^' => Some(report_gen(KeyCode::Grave, None)), // Special case
+		'^' => Some(report_gen(KeyCode::Grave, None)),
 		'_' => Some(report_gen(KeyCode::Slash, Some(KeyCode::LShift))),
-		'`' => Some(report_gen(KeyCode::Equal, Some(KeyCode::LShift))), // Special case
+		'`' => Some(report_gen(KeyCode::Equal, Some(KeyCode::LShift))),
 
 		'a' => Some(report_gen(KeyCode::A, None)),
 		'b' => Some(report_gen(KeyCode::B, None)),
@@ -151,7 +267,7 @@ fn german_char(c: char) -> Option<KbHidReport> {
 
 		'\n' => Some(report_gen(KeyCode::Enter, None)),
 
-		_ => None,
+		_ => None
 	}
 }
 
@@ -229,22 +345,26 @@ mod app {
 		}
 	}
 
-	fn type_char(ctx: &mut idle::Context, c: char) {
-		let r = german_char(c);
+	fn type_char(ctx: &mut idle::Context, layout: Layout, c: char) {
+		let r = match layout {
+			Layout::US => us_char(c),
+			Layout::German => german_char(c)
+		};
+
 		if let Some(report) = r {
 			let times = if c == '^' || c == '`' { 2 } else { 1 };
 			for _i in 0..times {
 				send_report(ctx, &report);
-				shitty_delay_ms(50);
+				shitty_delay_ms(20);
 				send_report(ctx, &KbHidReport::default());
-				shitty_delay_ms(50);
+				shitty_delay_ms(20);
 			}
 		}
 	}
 
-	fn type_str(ctx: &mut idle::Context, s: &str) {
+	fn type_str(ctx: &mut idle::Context, layout: Layout, s: &str) {
 		for c in s.chars() {
-			type_char(ctx, c);
+			type_char(ctx, layout, c);
 		}
 	}
 
@@ -252,9 +372,9 @@ mod app {
 	fn idle(mut c: idle::Context) -> ! {
 		shitty_delay_ms(3000);
 		loop {
-			type_str(&mut c, " !\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~\n");
+			type_str(&mut c, Layout::US, " !\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~\n");
 			shitty_delay_ms(1000);
-			type_str(&mut c, "Hello World!\n");
+			type_str(&mut c, Layout::US, "Hello World!\n");
 			shitty_delay_ms(1000);
 		}
 	}
