@@ -32,6 +32,85 @@ enum Layout {
 	DE
 }
 
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum Sector {
+	Center = -1,
+	North = 0,
+	East = 1,
+	South = 2,
+	West = 3
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum Direction {
+	None = -1,
+	NW = 0,
+	NE = 1,
+	EN = 2,
+	ES = 3,
+	SE = 4,
+	SW = 5,
+	WS = 6,
+	WN = 7
+}
+
+static LAYOUT: [[char; 8]; 8] = [
+	[ 's', 'd', 'g', '\'',  'S', 'D', 'G', '\"' ], // NW
+	[ 'y', 'b', 'p', 'q',   'Y', 'B', 'P', 'Q'  ], // NE
+	[ 'a', 'r', 'x', '?',   'A', 'R', 'X', '*'  ], // EN
+	[ 'n', 'm', 'f', '!',   'N', 'M', 'F', '!'  ], // ES
+	[ 'o', 'u', 'v', 'w',   'O', 'U', 'V', 'W'  ], // SE
+	[ 'e', 'l', 'k', '@',   'E', 'L', 'K', '-'  ], // SW
+	[ 'i', 'h', 'j', ',',   'I', 'H', 'J', ';'  ], // WS
+	[ 't', 'c', 'z', '.',   'T', 'C', 'Z', ':'  ]  // WN
+];
+
+static TABLE: [[i8; 4]; 4] = [
+	//         N   E   S   W
+	/* N */ [  0,  1,  0, -1 ],
+	/* E */ [ -1,  0,  1,  0 ],
+	/* S */ [  0, -1,  0,  1 ],
+	/* W */ [  1,  0, -1,  0 ]
+];
+
+struct Circle {
+	x: i32,
+	y: i32,
+	radius: i32
+}
+
+impl Circle {
+	fn in_circle(&self, x: i32, y: i32) -> bool {
+		(x - self.x).pow(2) + (y - self.y).pow(2) <= self.radius.pow(2)
+	}
+}
+
+struct Zone {
+	area: Circle,
+	sector: Sector
+}
+
+const RADIUS: i32 = 85;
+static ZONES: [Zone; 5] = [
+	Zone { area: Circle { x: 128, y:   0, radius: RADIUS }, sector: Sector::South  },
+	Zone { area: Circle { x:   0, y: 128, radius: RADIUS }, sector: Sector::West   },
+	Zone { area: Circle { x: 255, y: 128, radius: RADIUS }, sector: Sector::East   },
+	Zone { area: Circle { x: 128, y: 255, radius: RADIUS }, sector: Sector::North  },
+	Zone { area: Circle { x: 128, y: 128, radius: 40     }, sector: Sector::Center },
+];
+
+fn nunchuck_to_sector(data: &NunchuckReading) -> Option<Sector> {
+	let x = data.joystick_x.into();
+	let y = data.joystick_y.into();
+	for zone in &ZONES {
+		if zone.area.in_circle(x, y) {
+			return Some(zone.sector);
+		}
+	}
+
+	None
+}
+
 impl keyberon::keyboard::Leds for Leds {
 	fn caps_lock(&mut self, status: bool) {
 		if status {
@@ -161,6 +240,7 @@ fn us_char(c: char) -> Option<KbHidReport> {
 		'~' => Some(report_gen(KeyCode::Grave, Some(KeyCode::LShift))),
 
 		'\n' => Some(report_gen(KeyCode::Enter, None)),
+		'\x08' => Some(report_gen(KeyCode::BSpace, None)),
 
 		_ => None
 	}
@@ -271,6 +351,7 @@ fn german_char(c: char) -> Option<KbHidReport> {
 		'~' => Some(report_gen(KeyCode::RBracket, Some(KeyCode::RAlt))),
 
 		'\n' => Some(report_gen(KeyCode::Enter, None)),
+		'\x08' => Some(report_gen(KeyCode::BSpace, None)),
 
 		_ => None
 	}
@@ -291,7 +372,10 @@ struct NunchuckReading {
 fn nunchuck_init<T: i2c::Instance>(i2c: &mut I2c<T>) -> Result<(), i2c::Error> {
 	// May need to be changed depending on Nunchuck
 	i2c.write(NUNCHUCK_ADDR, &[ 0xF0, 0x55 ])?;
-	i2c.write(NUNCHUCK_ADDR, &[ 0xFB, 0x00 ])
+	shitty_delay_ms(10);
+	i2c.write(NUNCHUCK_ADDR, &[ 0xFB, 0x00 ])?;
+	shitty_delay_ms(10);
+	Ok(())
 }
 
 fn nunchuck_read<T: i2c::Instance>(i2c: &mut I2c<T>) -> Result<NunchuckReading, i2c::Error> {
@@ -422,10 +506,41 @@ mod app {
 		}
 	}
 
+	fn get_correct_char(initial_pos: Sector, cnt: i32) -> Option<char> {
+		let mut counter = cnt;
+		if counter != 0 {
+			let sel_array =
+			if counter < 0 {
+				counter = -counter;
+				match initial_pos {
+					Sector::North => Direction::NW,
+					Sector::South => Direction::SE,
+					Sector::East => Direction::EN,
+					Sector::West => Direction::WS,
+					_ => Direction::None
+				}
+			}
+			else {
+				match initial_pos {
+					Sector::North => Direction::NE,
+					Sector::South => Direction::SW,
+					Sector::East => Direction::ES,
+					Sector::West => Direction::WN,
+					_ => Direction::None
+				}
+			};
+
+			let chr = LAYOUT[sel_array as usize][((counter - 1) as usize) % LAYOUT[0].len()];
+			return Some(chr)
+		}
+
+		None
+	}
+
 	#[idle(shared = [usb_class], local = [i2c, myled])]
 	fn idle(mut c: idle::Context) -> ! {
-		shitty_delay_ms(3000);
-		type_str(&mut c, Layout::US, "Started!\n");
+		shitty_delay_ms(2000);
+		// type_str(&mut c, Layout::US, "Started!\n");
 
 		let test = false;
 		if test {
@@ -449,8 +564,8 @@ mod app {
 		else {
 			match nunchuck_init(c.local.i2c) {
 				Ok(()) => {
-					type_str(&mut c, Layout::US, "Nunchuck Initialized!\n");
-				}
+					// type_str(&mut c, Layout::US, "Nunchuck Initialized!\n");
+				},
 				Err(e) => {
 					let s = match e {
 						Overrun => { "Overrun" },
@@ -469,15 +584,70 @@ mod app {
 				}
 			}
 
+			let mut initial_pos = Sector::Center;
+			let mut last_pos = Sector::Center;
+			let mut counter: i32 = 0;
+			let mut prev_char = '\0';
 			loop {
 				let d = nunchuck_read(c.local.i2c);
 				match d {
 					Ok(data) => {
-						if data.joystick_y < 50 {
-							type_str(&mut c, Layout::US, "A");
+						if data.c_button_pressed {
+							type_char(&mut c, Layout::US, '\x08');
+							shitty_delay_ms(60);
 						}
-						else if data.joystick_y > 180 {
-							type_str(&mut c, Layout::US, "B");
+						else if data.z_button_pressed {
+							type_char(&mut c, Layout::US, ' ');
+							shitty_delay_ms(60);
+						}
+
+						if let Some(cur_pos) = nunchuck_to_sector(&data) {
+							/*match cur_pos {
+								Sector::Center => {
+									type_str(&mut c, Layout::US, "Center\n");
+								},
+								Sector::North => {
+									type_str(&mut c, Layout::US, "North\n");
+								},
+								Sector::South => {
+									type_str(&mut c, Layout::US, "South\n");
+								},
+								Sector::East => {
+									type_str(&mut c, Layout::US, "East\n");
+								},
+								Sector::West => {
+									type_str(&mut c, Layout::US, "West\n");
+								}
+							};*/
+
+							if initial_pos == Sector::Center {
+								// Start einer Bewegung
+								initial_pos = cur_pos;
+								last_pos = cur_pos;
+								counter = 0;
+								prev_char = '\0';
+							}
+							else {
+								// Neue Bewegung
+								if cur_pos == Sector::Center {
+									// Final
+									initial_pos = Sector::Center;
+								}
+								else {
+									// Every temporary change
+									counter += TABLE[last_pos as usize][cur_pos as usize] as i32;
+
+									if let Some(chr) = get_correct_char(initial_pos, counter) {
+										if chr != prev_char {
+											type_char(&mut c, Layout::US, '\x08');
+											type_char(&mut c, Layout::US, chr);
+											prev_char = chr;
+										}
+									}
+								}
+
+								last_pos = cur_pos;
+							}
 						}
 					},
 					Err(_) => {
