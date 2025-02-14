@@ -588,6 +588,7 @@ mod app {
 			let mut last_pos = Sector::Center;
 			let mut counter: i32 = 0;
 			let mut prev_char = '\0';
+			let mut first = true;
 			loop {
 				let d = nunchuck_read(c.local.i2c);
 				match d {
@@ -626,6 +627,7 @@ mod app {
 								last_pos = cur_pos;
 								counter = 0;
 								prev_char = '\0';
+								first = true;
 							}
 							else {
 								// Neue Bewegung
@@ -639,7 +641,11 @@ mod app {
 
 									if let Some(chr) = get_correct_char(initial_pos, counter) {
 										if chr != prev_char {
-											type_char(&mut c, Layout::US, '\x08');
+											if !first {
+												type_char(&mut c, Layout::US, '\x08');
+											}
+
+											first = false;
 											type_char(&mut c, Layout::US, chr);
 											prev_char = chr;
 										}
