@@ -5,6 +5,8 @@ use panic_halt as _;
 
 use keyberon::key_code::KbHidReport;
 use rtic::app;
+use stm32f4xx_hal::i2c;
+use stm32f4xx_hal::i2c::{I2c, I2cExt, Mode};
 use stm32f4xx_hal::gpio::{self};
 use stm32f4xx_hal::otg_fs::{UsbBusType, USB};
 use stm32f4xx_hal::prelude::*;
@@ -13,6 +15,9 @@ use usb_device::class::UsbClass as _;
 use keyberon::key_code::KeyCode;
 use cortex_m::asm::delay;
 use rtic::Mutex;
+use stm32f4xx_hal::pac::I2C1;
+use stm32f4xx_hal::i2c::Error::*;
+use stm32f4xx_hal::i2c::NoAcknowledgeSource;
 
 type UsbClass = keyberon::Class<'static, UsbBusType, Leds>;
 type UsbDevice = usb_device::device::UsbDevice<'static, UsbBusType>;
@@ -271,6 +276,42 @@ fn german_char(c: char) -> Option<KbHidReport> {
 	}
 }
 
+const NUNCHUCK_ADDR: u8 = 0x52;
+
+struct NunchuckReading {
+	joystick_x: u8,
+	joystick_y: u8,
+	accel_x: u16,
+	accel_y: u16,
+	accel_z: u16,
+	c_button_pressed: bool,
+	z_button_pressed: bool,
+}
+
+fn nunchuck_init<T: i2c::Instance>(i2c: &mut I2c<T>) -> Result<(), i2c::Error> {
+	// May need to be changed depending on Nunchuck
+	i2c.write(NUNCHUCK_ADDR, &[ 0xF0, 0x55 ])?;
+	i2c.write(NUNCHUCK_ADDR, &[ 0xFB, 0x00 ])
+}
+
+fn nunchuck_read<T: i2c::Instance>(i2c: &mut I2c<T>) -> Result<NunchuckReading, i2c::Error> {
+	let mut data: [u8; 6] = [0; 6];
+
+	i2c.write(NUNCHUCK_ADDR, &[ 0x00 ])?;
+	shitty_delay_ms(10);
+	i2c.read(NUNCHUCK_ADDR, &mut data)?;
+
+	Ok(NunchuckReading {
+		joystick_x: data[0],
+		joystick_y: data[1],
+		accel_x: (u16::from(data[2]) << 2) | ((u16::from(data[5]) >> 6) & 0b11),
+		accel_y: (u16::from(data[3]) << 2) | ((u16::from(data[5]) >> 4) & 0b11),
+		accel_z: (u16::from(data[4]) << 2) | ((u16::from(data[5]) >> 2) & 0b11),
+		c_button_pressed: (data[5] & 0b10) == 0,
+		z_button_pressed: (data[5] & 0b01) == 0,
+	})
+}
+
 #[app(device = stm32f4xx_hal::pac, peripherals = true)]
 mod app {
 	use super::*;
@@ -283,7 +324,8 @@ mod app {
 
 	#[local]
 	struct Local {
-		myled: stm32f4xx_hal::gpio::Pin<'B', 0, stm32f4xx_hal::gpio::Output>
+		myled: stm32f4xx_hal::gpio::Pin<'B', 0, stm32f4xx_hal::gpio::Output>,
+		i2c: I2c<I2C1>
 	}
 
 	#[init(local = [bus: Option<UsbBusAllocator<UsbBusType>> = None, ep_mem: [u32; 1024] = [0; 1024]])]
@@ -298,6 +340,17 @@ mod app {
 		let gpioa = c.device.GPIOA.split();
 		let gpiob = c.device.GPIOB.split();
 		let gpioc = c.device.GPIOC.split();
+
+		let scl = gpiob.pb8;
+		let sda = gpiob.pb9;
+
+		let i2c = c.device.I2C1.i2c(
+			(scl, sda),
+			Mode::Standard {
+				frequency: 100.kHz(),
+			},
+			&clocks,
+		);
 
 		let mut myled = gpiob.pb0.into_push_pull_output();
 		myled.set_high();
@@ -324,7 +377,8 @@ mod app {
 		(
 			Shared { usb_dev, usb_class },
 			Local {
-				myled
+				myled,
+				i2c
 			},
 			init::Monotonics(),
 		)
@@ -368,24 +422,71 @@ mod app {
 		}
 	}
 
-	#[idle(shared = [usb_class], local = [myled])]
+	#[idle(shared = [usb_class], local = [i2c, myled])]
 	fn idle(mut c: idle::Context) -> ! {
 		shitty_delay_ms(3000);
+		type_str(&mut c, Layout::US, "Started!\n");
 
-		type_str(&mut c, Layout::US, "US Layout Test:\n");
-		type_str(&mut c, Layout::US, " !\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~\n");
-		shitty_delay_ms(1000);
+		let test = false;
+		if test {
 
-		type_str(&mut c, Layout::US, "You now have 5 seconds to switch the keyboard layout to german\n");
-		shitty_delay_ms(5000);
-
-		type_str(&mut c, Layout::DE, "DE Layout Test:\n");
-		type_str(&mut c, Layout::DE, " !\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~\n");
-		shitty_delay_ms(1000);
-
-		loop {
-			type_str(&mut c, Layout::DE, "Hello World!\n");
+			type_str(&mut c, Layout::US, "US Layout Test:\n");
+			type_str(&mut c, Layout::US, " !\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~\n");
 			shitty_delay_ms(1000);
+
+			type_str(&mut c, Layout::US, "You now have 5 seconds to switch the keyboard layout to german\n");
+			shitty_delay_ms(5000);
+
+			type_str(&mut c, Layout::DE, "DE Layout Test:\n");
+			type_str(&mut c, Layout::DE, " !\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~\n");
+			shitty_delay_ms(1000);
+
+			loop {
+				type_str(&mut c, Layout::DE, "Hello World!\n");
+				shitty_delay_ms(1000);
+			}
+		}
+		else {
+			match nunchuck_init(c.local.i2c) {
+				Ok(()) => {
+					type_str(&mut c, Layout::US, "Nunchuck Initialized!\n");
+				}
+				Err(e) => {
+					let s = match e {
+						Overrun => { "Overrun" },
+						NoAcknowledge(NoAcknowledgeSource::Address) => { "NoAcknowledge Address" },
+						NoAcknowledge(NoAcknowledgeSource::Data) => { "NoAcknowledge Data" },
+						NoAcknowledge(NoAcknowledgeSource::Unknown) => { "NoAcknowledge Unknown" },
+						Timeout => { "Timeout" },
+						Bus => { "Bus" },
+						Crc => { "Crc" },
+						ArbitrationLoss => { "ArbitrationLoss" },
+						_ => { "Unknown" }
+					};
+
+					type_str(&mut c, Layout::US, s);
+					type_char(&mut c, Layout::US, '\n');
+				}
+			}
+
+			loop {
+				let d = nunchuck_read(c.local.i2c);
+				match d {
+					Ok(data) => {
+						if data.joystick_y < 50 {
+							type_str(&mut c, Layout::US, "A");
+						}
+						else if data.joystick_y > 180 {
+							type_str(&mut c, Layout::US, "B");
+						}
+					},
+					Err(_) => {
+						type_str(&mut c, Layout::US, "Read Error\n");
+					}
+				}
+
+				shitty_delay_ms(10);
+			}
 		}
 	}
 }
